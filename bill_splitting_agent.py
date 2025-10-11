@@ -410,7 +410,7 @@ class BillSplitSystem:
 
 if __name__ == "__main__":
     # Initialize system
-    system = BillSplitSystem(api_key='AIzaSyDcYbr7xqUwTknLkUvOu8eyvqzmNuLmCwo')
+    system = BillSplitSystem(api_key='')
     
     # Process and split
     bill_data, split_result = system.process_and_split(

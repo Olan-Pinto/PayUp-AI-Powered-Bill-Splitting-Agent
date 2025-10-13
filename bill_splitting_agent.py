@@ -1,4 +1,5 @@
 import json
+from os import environ
 from typing import Dict, List, Optional, Any
 from abc import ABC, abstractmethod
 from PIL import Image
@@ -7,6 +8,13 @@ from langchain.tools import tool
 from langchain.agents import create_react_agent, AgentExecutor
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain import hub
+from dotenv import load_dotenv
+
+
+
+
+load_dotenv()
+gemini_api_key = environ.get("GEMINI_API_KEY")
 
 
 # ============================================================================
@@ -410,7 +418,7 @@ class BillSplitSystem:
 
 if __name__ == "__main__":
     # Initialize system
-    system = BillSplitSystem(api_key='')
+    system = BillSplitSystem(api_key=gemini_api_key)
     
     # Process and split
     bill_data, split_result = system.process_and_split(

@@ -1,9 +1,16 @@
+"""
+Object-Oriented Bill Splitting System
+A refactored version with proper class hierarchy and separation of concerns
+"""
+
 import json
-from os import environ
+import os
 from typing import Dict, List, Optional, Any
 from abc import ABC, abstractmethod
+from datetime import datetime
 from PIL import Image
 import google.generativeai as genai
+from google.cloud import storage
 from langchain.tools import tool
 from langchain.agents import create_react_agent, AgentExecutor
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -11,10 +18,8 @@ from langchain import hub
 from dotenv import load_dotenv
 
 
-
-
 load_dotenv()
-gemini_api_key = environ.get("GEMINI_API_KEY")
+gemini_api_key = os.getenv("GEMINI_API_KEY")
 
 
 # ============================================================================
@@ -23,16 +28,123 @@ gemini_api_key = environ.get("GEMINI_API_KEY")
 
 class Config:
     """Centralized configuration management"""
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, gcs_credentials_path: Optional[str] = None,
+                 gcs_bucket_name: Optional[str] = None):
         self.api_key = api_key
         self.vision_model = 'gemini-2.0-flash-exp'
         self.agent_model = 'gemini-2.0-flash'
         self.temperature = 0
         self.max_agent_iterations = 15
         
+        # Google Cloud Storage settings
+        self.gcs_credentials_path = gcs_credentials_path
+        self.gcs_bucket_name = gcs_bucket_name
+        self.gcs_enabled = gcs_credentials_path is not None and gcs_bucket_name is not None
+        
+        if self.gcs_enabled:
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = self.gcs_credentials_path
+        
     def configure_genai(self):
         """Configure Google Generative AI"""
         genai.configure(api_key=self.api_key)
+
+
+# ============================================================================
+# CLOUD STORAGE
+# ============================================================================
+
+class CloudStorageManager:
+    """Manages Google Cloud Storage operations"""
+    
+    def __init__(self, config: Config):
+        self.config = config
+        self.client = None
+        
+        if self.config.gcs_enabled:
+            self.client = storage.Client()
+    
+    def upload_file(self, source_file_path: str, destination_blob_name: Optional[str] = None) -> Optional[str]:
+        """
+        Upload a file to Google Cloud Storage
+        
+        Args:
+            source_file_path: Local path to the file
+            destination_blob_name: Name for the file in GCS. If None, generates from filename
+            
+        Returns:
+            GCS URI of uploaded file, or None if upload failed/disabled
+        """
+        if not self.config.gcs_enabled:
+            print("GCS upload is disabled. Skipping upload.")
+            return None
+        
+        if not os.path.exists(source_file_path):
+            print(f"Error: File {source_file_path} not found")
+            return None
+        
+        try:
+            # Generate destination name if not provided
+            if destination_blob_name is None:
+                filename = os.path.basename(source_file_path)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                destination_blob_name = f"bills/{timestamp}_{filename}"
+            
+            # Upload to GCS
+            bucket = self.client.bucket(self.config.gcs_bucket_name)
+            blob = bucket.blob(destination_blob_name)
+            blob.upload_from_filename(source_file_path)
+            
+            gcs_uri = f"gs://{self.config.gcs_bucket_name}/{destination_blob_name}"
+            print(f"File uploaded to {gcs_uri}")
+            
+            return gcs_uri
+            
+        except Exception as e:
+            print(f"Error uploading to GCS: {str(e)}")
+            return None
+    
+    def upload_with_metadata(self, source_file_path: str, metadata: Dict[str, str],
+                            destination_blob_name: Optional[str] = None) -> Optional[str]:
+        """
+        Upload a file with custom metadata
+        
+        Args:
+            source_file_path: Local path to the file
+            metadata: Dictionary of metadata key-value pairs
+            destination_blob_name: Name for the file in GCS
+            
+        Returns:
+            GCS URI of uploaded file, or None if upload failed/disabled
+        """
+        if not self.config.gcs_enabled:
+            print("GCS upload is disabled. Skipping upload.")
+            return None
+        
+        if not os.path.exists(source_file_path):
+            print(f"Error: File {source_file_path} not found")
+            return None
+        
+        try:
+            # Generate destination name if not provided
+            if destination_blob_name is None:
+                filename = os.path.basename(source_file_path)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                destination_blob_name = f"bills/{timestamp}_{filename}"
+            
+            # Upload to GCS with metadata
+            bucket = self.client.bucket(self.config.gcs_bucket_name)
+            blob = bucket.blob(destination_blob_name)
+            blob.metadata = metadata
+            blob.upload_from_filename(source_file_path)
+            
+            gcs_uri = f"gs://{self.config.gcs_bucket_name}/{destination_blob_name}"
+            print(f"File uploaded to {gcs_uri} with metadata: {metadata}")
+            
+            return gcs_uri
+            
+        except Exception as e:
+            print(f"Error uploading to GCS: {str(e)}")
+            return None
 
 
 # ============================================================================
@@ -41,7 +153,7 @@ class Config:
 
 class BillData:
     """Data class to represent a bill"""
-    def __init__(self, data: Dict[str, Any]):
+    def __init__(self, data: Dict[str, Any], gcs_uri: Optional[str] = None):
         self.merchant = data.get('merchant', 'Unknown')
         self.date = data.get('date')
         self.items = data.get('items', [])
@@ -50,6 +162,7 @@ class BillData:
         self.tip = data.get('tip', 0)
         self.total = data.get('total', 0)
         self.raw_data = data
+        self.gcs_uri = gcs_uri  # Store the GCS location
         
     def get_item_by_name(self, item_name: str) -> Optional[Dict]:
         """Find an item by name (case-insensitive partial match)"""
@@ -66,6 +179,8 @@ class BillData:
             lines.append(f"Merchant: {self.merchant}")
         if self.date:
             lines.append(f"Date: {self.date}")
+        if self.gcs_uri:
+            lines.append(f"Stored at: {self.gcs_uri}")
             
         lines.append("\nItems:")
         for item in self.items:
@@ -97,20 +212,27 @@ class BillProcessor(ABC):
 class VisionBillProcessor(BillProcessor):
     """Process bills using Google Gemini Vision API"""
     
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, storage_manager: Optional[CloudStorageManager] = None):
         self.config = config
         self.config.configure_genai()
         self.model = genai.GenerativeModel(self.config.vision_model)
+        self.storage_manager = storage_manager
         
     def process(self, image_path: str) -> BillData:
-        """Process bill image using Gemini Vision"""
+        """Process bill image using Gemini Vision and optionally upload to GCS"""
+        # Upload to GCS first if enabled
+        gcs_uri = None
+        if self.storage_manager:
+            gcs_uri = self.storage_manager.upload_file(image_path)
+        
+        # Process the image
         img = Image.open(image_path)
         
         prompt = self._build_prompt()
         response = self.model.generate_content([prompt, img])
         
         raw_data = self._parse_response(response.text)
-        return BillData(raw_data)
+        return BillData(raw_data, gcs_uri=gcs_uri)
     
     def _build_prompt(self) -> str:
         """Build the vision model prompt"""
@@ -362,7 +484,7 @@ Work step by step using tools, then provide final JSON."""
     
     def _parse_response(self, output: str) -> Dict:
         """Parse JSON from agent response"""
-        print(f"\n📄 Final output:\n{output}\n")
+        print(f"\nFinal output:\n{output}\n")
         
         if "```json" in output:
             output = output.split("```json")[1].split("```")[0].strip()
@@ -372,7 +494,7 @@ Work step by step using tools, then provide final JSON."""
         try:
             return json.loads(output)
         except json.JSONDecodeError as e:
-            print(f"⚠️ JSON parse error: {e}")
+            print(f"JSON parse error: {e}")
             return {
                 "error": "Failed to parse JSON",
                 "raw_response": output
@@ -386,14 +508,20 @@ Work step by step using tools, then provide final JSON."""
 class BillSplitSystem:
     """Main orchestrator for the bill splitting system"""
     
-    def __init__(self, api_key: str):
-        self.config = Config(api_key)
-        self.bill_processor = VisionBillProcessor(self.config)
+    def __init__(self, api_key: str, gcs_credentials_path: Optional[str] = None,
+                 gcs_bucket_name: Optional[str] = None):
+        self.config = Config(api_key, gcs_credentials_path, gcs_bucket_name)
+        
+        # Initialize storage manager
+        self.storage_manager = CloudStorageManager(self.config) if self.config.gcs_enabled else None
+        
+        # Initialize processors
+        self.bill_processor = VisionBillProcessor(self.config, self.storage_manager)
         self.expense_splitter = ExpenseSplitter(self.config)
     
     def process_and_split(self, image_path: str, instruction: str) -> tuple[BillData, SplitResult]:
         """Process a bill image and split expenses"""
-        # Step 1: Extract bill data from image
+        # Step 1: Extract bill data from image (and upload to GCS)
         print("Processing bill image...")
         bill_data = self.bill_processor.process(image_path)
         
@@ -401,6 +529,31 @@ class BillSplitSystem:
         print(bill_data.format_summary())
         
         # Step 2: Split expenses based on instruction
+        print(f"\nSplitting expenses: {instruction}")
+        split_result = self.expense_splitter.split(bill_data, instruction)
+        
+        return bill_data, split_result
+    
+    def process_and_split_with_metadata(self, image_path: str, instruction: str, 
+                                       metadata: Optional[Dict[str, str]] = None) -> tuple[BillData, SplitResult]:
+        """Process bill and upload with custom metadata"""
+        # Upload with metadata if provided
+        if self.storage_manager and metadata:
+            gcs_uri = self.storage_manager.upload_with_metadata(image_path, metadata)
+            
+            # Process without re-uploading
+            img = Image.open(image_path)
+            prompt = self.bill_processor._build_prompt()
+            response = self.bill_processor.model.generate_content([prompt, img])
+            raw_data = self.bill_processor._parse_response(response.text)
+            bill_data = BillData(raw_data, gcs_uri=gcs_uri)
+        else:
+            bill_data = self.bill_processor.process(image_path)
+        
+        print("\nBill processed successfully!")
+        print(bill_data.format_summary())
+        
+        # Split expenses
         print(f"\nSplitting expenses: {instruction}")
         split_result = self.expense_splitter.split(bill_data, instruction)
         
@@ -417,10 +570,14 @@ class BillSplitSystem:
 # ============================================================================
 
 if __name__ == "__main__":
-    # Initialize system
-    system = BillSplitSystem(api_key=gemini_api_key)
+    # Example 1: Basic usage with GCS upload
+    system = BillSplitSystem(
+        api_key=gemini_api_key,
+        gcs_credentials_path='gcloud-key/bill_upload_bucket_key.json',
+        gcs_bucket_name='uploaded_bills'
+    )
     
-    # Process and split
+    # Process and split (automatically uploads to GCS)
     bill_data, split_result = system.process_and_split(
         image_path="test_img.jpg",
         instruction="Olan only bought Paneer Aati. Shivani bought everything else. Split tax proportionally."
@@ -437,3 +594,4 @@ if __name__ == "__main__":
         print("\nSplit is mathematically valid!")
     else:
         print("\nWarning: Split totals don't match bill total")
+    

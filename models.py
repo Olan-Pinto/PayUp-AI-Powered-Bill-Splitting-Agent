@@ -6,6 +6,6 @@ Base = declarative_base()
 
 class BillData(Base):
     __tablename__ = "bill_data"
-    id = Column(Integer, primary_key=True, index=True)
+    bill_id = Column(String, primary_key=True)
     file_name = Column(String, nullable=False)
     bill_json = Column(JSONB, nullable=False)

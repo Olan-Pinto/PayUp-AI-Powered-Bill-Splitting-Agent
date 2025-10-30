@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bill Results - PayUp</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .bill-id-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .split-item {
+            background: #f8f9ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .person-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .person-amount {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+        
+        .actions {
+            text-align: center;
+            margin-top: 30px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .btn-download {
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        pre {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 12px;
+            display: none;
+        }
+        
+        .toggle-json {
+            cursor: pointer;
+            color: #667eea;
+            text-decoration: underline;
+            font-size: 14px;
+            margin-top: 10px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✅ Bill Processed Successfully!</h1>
+            <div class="bill-id-badge">
+                Bill ID: {{ bill_id }}
+            </div>
+        </div>
+        
+        <!-- Bill Image -->
+        <div class="card">
+            <h2>📷 Original Bill</h2>
+            <img src="http://localhost:8000/bill/{{ bill_id }}/view" alt="Bill Image" style="max-width: 100%; border-radius: 8px;">
+        </div>
+        
+        <!-- Split Results -->
+        <div class="card">
+            <h2>💰 Split Breakdown</h2>
+            
+            {% if bill_json.split_result and bill_json.split_result.breakdown %}
+                {% for split in bill_json.split_result.breakdown %}
+                <div class="split-item">
+                    <span class="person-name">Person {{ split.person }}</span>
+                    <span class="person-amount">${{ "%.2f"|format(split.total) }}</span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>No split data available.</p>
+            {% endif %}
+            
+            <span class="toggle-json" onclick="toggleJSON()">Show Raw JSON</span>
+            <pre id="jsonView">{{ bill_json | tojson(indent=2) }}</pre>
+        </div>
+        
+        <!-- Actions -->
+        <div class="actions">
+            <a href="/download/{{ bill_id }}" class="btn btn-download">📥 Download Bill</a>
+            <a href="/" class="btn btn-primary">➕ Process New Bill</a>
+        </div>
+    </div>
+    
+    <script>
+        function toggleJSON() {
+            const jsonView = document.getElementById('jsonView');
+            const toggle = document.querySelector('.toggle-json');
+            
+            if (jsonView.style.display === 'none' || jsonView.style.display === '') {
+                jsonView.style.display = 'block';
+                toggle.textContent = 'Hide Raw JSON';
+            } else {
+                jsonView.style.display = 'none';
+                toggle.textContent = 'Show Raw JSON';
+            }
+        }
+    </script>
+</body>
+</html>

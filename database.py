@@ -1,30 +1,41 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
 import os
+from sqlalchemy.pool import NullPool
+from sqlalchemy import create_engine
 
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# --- FIX: ensure asyncpg disables statement caching ---
-connect_args = {
-    "statement_cache_size": 0,
-    "prepared_statement_cache_size": 0,  # some versions use this name
-}
-
+# Create engine without statement caching
 engine = create_async_engine(
     DATABASE_URL,
     echo=True,
-    future=True,
-    connect_args=connect_args,
-    pool_pre_ping=True  # helps recover from Supabase idle timeouts
+    poolclass=NullPool,
+    pool_pre_ping=True,
+    connect_args={
+        "server_settings": {
+            "application_name": "bill_splitter",
+            "jit": "off"
+        },
+        "command_timeout": 60,
+        "statement_cache_size": 0,
+        "prepared_statement_cache_size": 0
+    }
 )
 
+sync_database_url = DATABASE_URL.replace('+asyncpg', '+psycopg2')
+sync_engine = create_engine(sync_database_url, poolclass=NullPool)
+
+engine.sync_engine = sync_engine
+
+# Create session factory
 AsyncSessionLocal = sessionmaker(
     bind=engine,
     class_=AsyncSession,
-    expire_on_commit=False
+    expire_on_commit=False,
+    autoflush=False,
+    autocommit=False  
 )
-
-Base = declarative_base()

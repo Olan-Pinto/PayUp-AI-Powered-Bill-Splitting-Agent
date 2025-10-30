@@ -1,0 +1,103 @@
+{
+  "bill_id": "eb7dd375-7a97-47d3-91a6-31bca5babcff",
+  "file_name": "gs://uploaded_bills/bills/20251029_025147_eb7dd375-7a97-47d3-91a6-31bca5babcff_test_img.jpg",
+  "bill_data": {
+    "merchant": null,
+    "date": null,
+    "items": [
+      {
+        "name": "Lahori Murgh Tandoori F",
+        "quantity": 1,
+        "unit_price": null,
+        "total": 180.0
+      },
+      {
+        "name": "Tsf Platter Paneer Aati",
+        "quantity": 2,
+        "unit_price": null,
+        "total": 300.0
+      },
+      {
+        "name": "Papad",
+        "quantity": 5,
+        "unit_price": null,
+        "total": 75.0
+      },
+      {
+        "name": "Assorted Veg Platter",
+        "quantity": 2,
+        "unit_price": null,
+        "total": 500.0
+      },
+      {
+        "name": "Tsf Platter Kadhai Pane",
+        "quantity": 2,
+        "unit_price": null,
+        "total": 300.0
+      },
+      {
+        "name": "Choice Of Juice",
+        "quantity": 4,
+        "unit_price": null,
+        "total": 160.0
+      },
+      {
+        "name": "Aerated Water",
+        "quantity": 2,
+        "unit_price": null,
+        "total": 60.0
+      },
+      {
+        "name": "Bottled Water",
+        "quantity": 3,
+        "unit_price": null,
+        "total": 36.0
+      },
+      {
+        "name": "Premium Whisky",
+        "quantity": 4,
+        "unit_price": null,
+        "total": 100.0
+      },
+      {
+        "name": "Beer Bottle",
+        "quantity": 5,
+        "unit_price": null,
+        "total": 300.0
+      }
+    ],
+    "subtotal": 2011.0,
+    "tax": null,
+    "total": 2011.0
+  },
+  "split_result": {
+    "split_type": "equal",
+    "breakdown": [
+      {
+        "person": "Person 1",
+        "items": [],
+        "subtotal": 670.33,
+        "tax_share": 0.0,
+        "total": 670.33
+      },
+      {
+        "person": "Person 2",
+        "items": [],
+        "subtotal": 670.33,
+        "tax_share": 0.0,
+        "total": 670.33
+      },
+      {
+        "person": "Person 3",
+        "items": [],
+        "subtotal": 670.33,
+        "tax_share": 0.0,
+        "total": 670.33
+      }
+    ],
+    "verification": {
+      "sum": 2010.99,
+      "bill_total": 2011.0
+    }
+  }
+}

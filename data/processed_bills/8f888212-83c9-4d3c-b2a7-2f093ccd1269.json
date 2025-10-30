@@ -1,0 +1,96 @@
+{
+  "bill_id": "8f888212-83c9-4d3c-b2a7-2f093ccd1269",
+  "file_name": "gs://uploaded_bills/bills/20251028_200745_tmpr3ma9bv4.jpg",
+  "bill_data": {
+    "merchant": null,
+    "date": null,
+    "items": [
+      {
+        "name": "Lahori Murgh Tandoori F",
+        "quantity": 1,
+        "unit_price": 180.0,
+        "total": 180.0
+      },
+      {
+        "name": "Tsf Platter Paneer Aati",
+        "quantity": 2,
+        "unit_price": 150.0,
+        "total": 300.0
+      },
+      {
+        "name": "Papad",
+        "quantity": 5,
+        "unit_price": 15.0,
+        "total": 75.0
+      },
+      {
+        "name": "Assorted Veg Platter",
+        "quantity": 2,
+        "unit_price": 250.0,
+        "total": 500.0
+      },
+      {
+        "name": "Tsf Platter Kadhai Pane",
+        "quantity": 2,
+        "unit_price": 150.0,
+        "total": 300.0
+      },
+      {
+        "name": "Choice Of Juice",
+        "quantity": 4,
+        "unit_price": 40.0,
+        "total": 160.0
+      },
+      {
+        "name": "Aerated Water",
+        "quantity": 2,
+        "unit_price": 30.0,
+        "total": 60.0
+      },
+      {
+        "name": "Bottled Water",
+        "quantity": 3,
+        "unit_price": 12.0,
+        "total": 36.0
+      },
+      {
+        "name": "Premium Whisky",
+        "quantity": 4,
+        "unit_price": 25.0,
+        "total": 100.0
+      },
+      {
+        "name": "Beer Bottle",
+        "quantity": 5,
+        "unit_price": 60.0,
+        "total": 300.0
+      }
+    ],
+    "subtotal": 2011.0,
+    "tax": 0.0,
+    "total": 2011.0
+  },
+  "split_result": {
+    "split_type": "percentage",
+    "breakdown": [
+      {
+        "person": "Person A",
+        "items": [],
+        "subtotal": 1508.25,
+        "tax_share": 0.0,
+        "total": 1508.25
+      },
+      {
+        "person": "Person B",
+        "items": [],
+        "subtotal": 502.75,
+        "tax_share": 0.0,
+        "total": 502.75
+      }
+    ],
+    "verification": {
+      "sum": 2011.0,
+      "bill_total": 2011.0
+    }
+  }
+}

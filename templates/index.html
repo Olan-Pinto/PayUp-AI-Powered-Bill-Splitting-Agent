@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PayUp - AI Bill Splitter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        input[type="file"],
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="file"]:focus,
+        input[type="text"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            margin-top: 10px;
+        }
+        
+        .divider {
+            text-align: center;
+            margin: 30px 0;
+            color: #999;
+            position: relative;
+        }
+        
+        .divider::before,
+        .divider::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            width: 45%;
+            height: 1px;
+            background: #e0e0e0;
+        }
+        
+        .divider::before {
+            left: 0;
+        }
+        
+        .divider::after {
+            right: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 PayUp</h1>
+        <p class="subtitle">AI-Powered Bill Splitting</p>
+        
+        <form action="/process-bill" method="POST" enctype="multipart/form-data" onsubmit="return validateForm()">
+            <div class="form-group">
+                <label for="bill_image">📸 Upload Bill Image</label>
+                <input type="file" id="bill_image" name="bill_image" accept="image/*" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="split_type">🔀 How to Split?</label>
+                <select id="split_type" name="split_type" onchange="updateInstruction()">
+                    <option value="equal_2">Split equally among 2 people</option>
+                    <option value="equal_3">Split equally among 3 people</option>
+                    <option value="equal_4">Split equally among 4 people</option>
+                    <option value="equal_5">Split equally among 5 people</option>
+                    <option value="custom">Custom instruction</option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="custom_instruction" style="display: none;">
+                <label for="custom_instruction_text">✍️ Custom Instruction</label>
+                <input type="text" id="custom_instruction_text" placeholder="e.g., Person A pays 60%, Person B pays 40%">
+            </div>
+            
+            <input type="hidden" id="instruction" name="instruction" value="Split equally among 2">
+            
+            <button type="submit" class="btn">Process Bill</button>
+        </form>
+        
+        <div class="divider">OR</div>
+        
+        <a href="/lookup" class="btn btn-secondary" style="display: block; text-align: center; text-decoration: none;">
+            🔍 Lookup Existing Bill
+        </a>
+    </div>
+    
+    <script>
+        function updateInstruction() {
+            const splitType = document.getElementById('split_type').value;
+            const customDiv = document.getElementById('custom_instruction');
+            const instruction = document.getElementById('instruction');
+            const customInput = document.getElementById('custom_instruction_text');
+            
+            if (splitType === 'custom') {
+                customDiv.style.display = 'block';
+                instruction.value = customInput.value || 'Split equally among 2';
+            } else {
+                customDiv.style.display = 'none';
+                
+                // Update instruction based on selection
+                if (splitType === 'equal_2') {
+                    instruction.value = 'Split equally among 2';
+                } else if (splitType === 'equal_3') {
+                    instruction.value = 'Split equally among 3';
+                } else if (splitType === 'equal_4') {
+                    instruction.value = 'Split equally among 4';
+                } else if (splitType === 'equal_5') {
+                    instruction.value = 'Split equally among 5';
+                }
+            }
+            
+            console.log('Instruction set to:', instruction.value); // Debug log
+        }
+        
+        // Update custom instruction as user types
+        document.getElementById('custom_instruction_text').addEventListener('input', function() {
+            if (document.getElementById('split_type').value === 'custom') {
+                document.getElementById('instruction').value = this.value;
+            }
+        });
+        
+        function validateForm() {
+            const instruction = document.getElementById('instruction').value;
+            console.log('Submitting with instruction:', instruction); // Debug log
+            return true;
+        }
+        
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', updateInstruction);
+    </script>
+</body>
+</html>

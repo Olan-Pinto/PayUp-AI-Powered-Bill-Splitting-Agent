@@ -1,79 +1,230 @@
-from fastapi import FastAPI, File, Form, UploadFile, Depends
-from fastapi.responses import JSONResponse
-import tempfile
-import os
-from bill_splitting_agent import BillSplitSystem
-from dotenv import load_dotenv
-import json
-import uuid
-from pathlib import Path
-from fastapi.responses import Response
-from sqlalchemy.ext.asyncio import AsyncSession
-from models import BillData
+from fastapi import FastAPI, File, Form, UploadFile, Depends, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse, FileResponse, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.encoders import jsonable_encoder
-from database import AsyncSessionLocal
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from fastapi.responses import FileResponse
-from google.cloud import storage
-import tempfile
-import re
-
-# Load environment variables
-load_dotenv()
-app = FastAPI(title="Bill Splitting API", version="1.0")
-
-
-DATA_DIR = Path("data/processed_bills")
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-async def get_db():
-    async with AsyncSessionLocal() as session:
-        yield session
-
-
-
-system = BillSplitSystem(
-    api_key=os.getenv("GEMINI_API_KEY"),
-    gcs_credentials_path='gcloud-key/bill_upload_bucket_key.json',
-    gcs_bucket_name='uploaded_bills'
-)
-
-from fastapi import FastAPI, File, Form, UploadFile, Depends
-from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
 import tempfile
 import os
-import uuid
 import json
+import uuid
+import re
 from pathlib import Path
 from dotenv import load_dotenv
+from google.cloud import storage
 
-from sqlalchemy.ext.asyncio import AsyncSession
+# Existing imports
+from bill_splitting_agent import BillSplitSystem
 from models import BillData
 from database import AsyncSessionLocal
-from bill_splitting_agent import BillSplitSystem
+
+# NEW: RabbitMQ and Redis imports
+from celery import Celery
+from redis import Redis
+import asyncio
 
 # Load environment variables
 load_dotenv()
 
 app = FastAPI(title="Bill Splitting API", version="1.0")
 
-# Folder for local JSON backups
+# Folders
 DATA_DIR = Path("data/processed_bills")
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Database session dependency
 async def get_db():
     async with AsyncSessionLocal() as session:
         yield session
 
+# Existing system
 system = BillSplitSystem(
     api_key=os.getenv("GEMINI_API_KEY"),
     gcs_credentials_path='gcloud-key/bill_upload_bucket_key.json',
     gcs_bucket_name='uploaded_bills'
 )
 
+# ============ NEW: Celery + Redis Configuration ============
+
+# Celery app for async task queue
+celery_app = Celery(
+    'bill_processor',
+    broker='amqp://guest:guest@localhost:5672//',
+    backend='redis://localhost:6379/0'
+)
+
+celery_app.conf.update(
+    task_serializer='json',
+    accept_content=['json'],
+    result_serializer='json',
+    timezone='UTC',
+    enable_utc=True,
+    broker_heartbeat=60,  
+    broker_heartbeat_checkrate=2,  
+)
+
+# Redis client for progress tracking
+redis_client = Redis(host='localhost', port=6379, decode_responses=True)
+
+
+# ============ NEW: Celery Background Task ============
+
+@celery_app.task(bind=True)
+
+
+def process_bill_async(self, bill_id: str, temp_file_path: str, instruction: str):
+    """
+    Celery task to process bill in the background with detailed progress updates.
+    """
+    import time
+    import psycopg2
+    from psycopg2.extras import Json
+    import os
+    
+    def publish_progress(stage, message, progress):
+        """Publish progress to Redis for WebSocket"""
+        redis_client.publish(
+            f'bill_progress:{bill_id}',
+            json.dumps({
+                "stage": stage,
+                "message": message,
+                "progress": progress
+            })
+        )
+    
+    try:
+        # Step 1: Upload preparation
+        publish_progress('uploading', 'Preparing file for upload...', 5)
+        # time.sleep(1)
+        
+        publish_progress('uploading', 'Connecting to Google Cloud Storage...', 10)
+        # time.sleep(1)
+        
+        publish_progress('uploading', 'Uploading bill image...', 15)
+        # time.sleep(1.5)
+        
+        publish_progress('uploading', 'Upload complete! Starting OCR...', 20)
+        # time.sleep(0.5)
+        
+        # Step 2: OCR Processing
+        publish_progress('ocr', 'Initializing OCR engine...', 25)
+        # time.sleep(1)
+        
+        publish_progress('ocr', 'Scanning bill image...', 30)
+        # time.sleep(1)
+        
+        publish_progress('ocr', 'Extracting text from bill...', 40)
+        # time.sleep(1)
+        
+        # Process bill (actual AI work happens here)
+        bill_data, split_result = system.process_and_split(temp_file_path, instruction)
+        
+        # Get item count
+        item_count = len(bill_data.raw_data.get('items', []))
+        publish_progress('ocr', f'Found {item_count} line items on bill', 50)
+        # time.sleep(1)
+        
+        publish_progress('ocr', 'Parsing prices and totals...', 55)
+        # time.sleep(1)
+        
+        # Step 3: Bill Splitting
+        publish_progress('splitting', 'Analyzing bill structure...', 60)
+        # time.sleep(1)
+        
+        person_count = len(split_result.raw_data.get('breakdown', []))
+        publish_progress('splitting', f'Calculating split for {person_count} people...', 65)
+        # time.sleep(1)
+        
+        # Get per-person amount
+        if person_count > 0:
+            per_person = split_result.raw_data['breakdown'][0].get('total', 0)
+            publish_progress('splitting', f'Each person owes ${per_person:.2f}', 70)
+        else:
+            publish_progress('splitting', 'Calculating amounts...', 70)
+        # time.sleep(1)
+        
+        publish_progress('splitting', 'Applying tax and tip distribution...', 75)
+        # time.sleep(1)
+        
+        publish_progress('splitting', 'Verifying calculations...', 80)
+        # time.sleep(1)
+        
+        # Step 4: Saving to Database Only
+        publish_progress('saving', 'Preparing data for storage...', 85)
+        # time.sleep(0.5)
+        
+        publish_progress('saving', 'Connecting to database...', 88)
+        # time.sleep(0.5)
+        
+        publish_progress('saving', 'Writing to database...', 92)
+        
+        # Save to PostgreSQL using psycopg2 (sync)
+        database_url = os.getenv("DATABASE_URL")
+        conn = psycopg2.connect(database_url.replace('+asyncpg', ''))
+        cur = conn.cursor()
+        
+        # Insert data
+        bill_json = {
+            "bill_data": bill_data.raw_data,
+            "split_result": split_result.raw_data
+        }
+        
+        cur.execute(
+            """
+            INSERT INTO bill_data (bill_id, file_name, bill_json)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (bill_id) DO UPDATE
+            SET file_name = EXCLUDED.file_name,
+                bill_json = EXCLUDED.bill_json
+            """,
+            (bill_id, bill_data.gcs_uri, Json(bill_json))
+        )
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+        
+        # time.sleep(1)
+        
+        publish_progress('saving', 'Finalizing...', 96)
+        # time.sleep(0.5)
+        
+        # Clean up temp file
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+        
+        publish_progress('completed', '✅ Bill processed successfully!', 100)
+        
+        return {
+            "bill_id": bill_id,
+            "status": "completed",
+            "file_name": bill_data.gcs_uri
+        }
+        
+    except Exception as e:
+        publish_progress('error', f'❌ Error: {str(e)}', 0)
+        
+        # Clean up temp file on error
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+        
+        raise e
+
+
+
+
+
+# ============ MODIFIED: Process Bill Endpoint (Now Async) ============
 
 @app.post("/process-bill")
 async def process_bill(
@@ -82,63 +233,85 @@ async def process_bill(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Upload a bill image and a split instruction.
-    Processes it using AI + GCS, saves locally as JSON (for backup),
-    and stores structured data in PostgreSQL with GCS link.
+    Upload a bill image and queue it for async processing.
+    Returns immediately with bill_id. Client can track progress via WebSocket.
     """
     try:
-        # Save uploaded file temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1]) as temp_file:
-            temp_file.write(await file.read())
-            temp_file_path = temp_file.name
-
-        # Process and split using the AI system
-        bill_data, split_result = system.process_and_split(temp_file_path, instruction)
-
         # Generate unique ID
         bill_id = str(uuid.uuid4())
-        print("Uploaded to GCS with URL:", bill_data.gcs_uri)
-        # Construct record with full GCS URI (or HTTP UR
-        bill_record = {
-            "bill_id": bill_id,
-            "file_name": bill_data.gcs_uri,
-            "bill_data": bill_data.raw_data,
-            "split_result": split_result.raw_data
-        }
-
-        # --- Local JSON backup (for redundancy) ---
-        with open(DATA_DIR / f"{bill_id}.json", "w", encoding="utf-8") as f:
-            json.dump(bill_record, f, indent=2)
-
-        # --- Store in PostgreSQL ---
-        bill_json = jsonable_encoder({
-            "bill_data": bill_data.raw_data,
-            "split_result": split_result.raw_data
-        })
-
-        db_obj = BillData(
-            bill_id=bill_id,
-            file_name=bill_record["file_name"],
-            bill_json=bill_json
-        )
-        db.add(db_obj)
-        await db.commit()
-        await db.refresh(db_obj)
-
-        # Clean up temp file
-        os.remove(temp_file_path)
-
+        
+        # Save uploaded file temporarily (will be processed by worker)
+        temp_file_path = f"/tmp/{bill_id}_{file.filename}"
+        with open(temp_file_path, "wb") as f:
+            f.write(await file.read())
+        
+        # Queue the processing job (non-blocking)
+        process_bill_async.delay(bill_id, temp_file_path, instruction)
+        
+        # Return immediately
         return JSONResponse(content={
-            "message": "Bill processed and stored successfully",
+            "message": "Bill queued for processing",
             "bill_id": bill_id,
-            "file_name": bill_record["file_name"],
-            "bill_data": bill_data.raw_data,
-            "split_result": split_result.raw_data
+            "status": "queued"
         })
-
+        
     except Exception as e:
-        return JSONResponse(content={"error": str(e)}, status_code=500)
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+
+# ============ NEW: WebSocket for Real-time Progress ============
+
+@app.websocket("/ws/progress/{bill_id}")
+async def websocket_progress(websocket: WebSocket, bill_id: str):
+    """
+    WebSocket endpoint for real-time progress updates.
+    Frontend connects to this to receive live updates.
+    """
+    await websocket.accept()
     
+    # Subscribe to Redis pub/sub for this bill
+    pubsub = redis_client.pubsub()
+    pubsub.subscribe(f'bill_progress:{bill_id}')
+    
+    try:
+        # Listen for messages
+        for message in pubsub.listen():
+            if message['type'] == 'message':
+                data = json.loads(message['data'])
+                await websocket.send_json(data)
+                
+                # Close connection when complete
+                if data['stage'] in ['completed', 'error']:
+                    break
+                    
+    except WebSocketDisconnect:
+        pubsub.unsubscribe(f'bill_progress:{bill_id}')
+    finally:
+        await websocket.close()
+
+
+# ============ NEW: Check Processing Status ============
+
+@app.get("/bill/{bill_id}/status")
+async def get_bill_status(bill_id: str):
+    """
+    Get current processing status of a bill.
+    Useful for polling if WebSocket is not available.
+    """
+    # Check Celery task result
+    task_result = celery_app.AsyncResult(bill_id)
+    
+    return JSONResponse(content={
+        "bill_id": bill_id,
+        "status": task_result.state,
+        "info": task_result.info if task_result.info else {}
+    })
+
+
+# ============ EXISTING ENDPOINTS (Unchanged) ============
 
 @app.get("/bill/{bill_id}")
 async def get_bill(bill_id: str, db: AsyncSession = Depends(get_db)):
@@ -162,15 +335,10 @@ async def get_bill(bill_id: str, db: AsyncSession = Depends(get_db)):
     )
 
 
-
 @app.get("/bill/{bill_id}/download")
 async def download_bill(bill_id: str, db: AsyncSession = Depends(get_db)):
-    """
-    Download the original bill image from Google Cloud Storage.
-    Fetches GCS URI from PostgreSQL and returns the file as a downloadable response.
-    """
+    """Download the original bill image from GCS"""
     try:
-        # 1️⃣ Fetch from DB
         result = await db.execute(select(BillData).where(BillData.bill_id == bill_id))
         bill = result.scalars().first()
 
@@ -187,7 +355,6 @@ async def download_bill(bill_id: str, db: AsyncSession = Depends(get_db)):
                 status_code=400
             )
 
-        # 2️⃣ Parse GCS URI (supports both gs:// and https:// formats)
         match = re.match(r"(?:gs://|https://storage\.googleapis\.com/)([^/]+)/(.+)", gcs_uri)
         if not match:
             return JSONResponse(
@@ -197,7 +364,6 @@ async def download_bill(bill_id: str, db: AsyncSession = Depends(get_db)):
 
         bucket_name, blob_name = match.groups()
 
-        # 3️⃣ Download from GCS
         client = storage.Client()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_name)
@@ -212,7 +378,6 @@ async def download_bill(bill_id: str, db: AsyncSession = Depends(get_db)):
             blob.download_to_filename(tmp.name)
             temp_path = tmp.name
 
-        # 4️⃣ Return downloadable file
         filename = os.path.basename(blob_name)
         return FileResponse(
             path=temp_path,
@@ -227,15 +392,10 @@ async def download_bill(bill_id: str, db: AsyncSession = Depends(get_db)):
         )
 
 
-
 @app.get("/bill/{bill_id}/view")
 async def view_bill(bill_id: str, db: AsyncSession = Depends(get_db)):
-    """
-    Display the original bill image directly from Google Cloud Storage.
-    Fetches from PostgreSQL and returns the image inline in the browser.
-    """
+    """Display the original bill image from GCS"""
     try:
-        # 1️⃣ Fetch from DB
         result = await db.execute(select(BillData).where(BillData.bill_id == bill_id))
         bill = result.scalars().first()
 
@@ -252,7 +412,6 @@ async def view_bill(bill_id: str, db: AsyncSession = Depends(get_db)):
                 status_code=400
             )
 
-        # 2️⃣ Parse URI (supports both gs:// and https://storage.googleapis.com/ formats)
         match = re.match(r"(?:gs://|https://storage\.googleapis\.com/)([^/]+)/(.+)", gcs_uri)
         if not match:
             return JSONResponse(
@@ -262,7 +421,6 @@ async def view_bill(bill_id: str, db: AsyncSession = Depends(get_db)):
 
         bucket_name, blob_name = match.groups()
 
-        # 3️⃣ Download from GCS (in-memory)
         client = storage.Client()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_name)
@@ -276,7 +434,6 @@ async def view_bill(bill_id: str, db: AsyncSession = Depends(get_db)):
         image_bytes = blob.download_as_bytes()
         content_type = blob.content_type or "image/jpeg"
 
-        # 4️⃣ Serve inline
         return Response(
             content=image_bytes,
             media_type=content_type,

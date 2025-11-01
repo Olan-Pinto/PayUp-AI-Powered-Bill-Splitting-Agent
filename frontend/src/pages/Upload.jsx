@@ -1,9 +1,11 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 function Upload() {
   const navigate = useNavigate();
+  const [user, setUser] = useState(localStorage.getItem("user") || null);
   const [file, setFile] = useState(null);
   const [splitType, setSplitType] = useState('');
   const [customInstruction, setCustomInstruction] = useState('');
@@ -77,59 +79,71 @@ function Upload() {
     }
   };
 
-  const connectWebSocket = (billIdParam) => {
-    const ws = new WebSocket(`ws://localhost:8000/ws/progress/${billIdParam}`);
-    wsRef.current = ws;
+  const handleLogout = () => {
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("user");
+  navigate("/login");
+};
 
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-    };
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      console.log('Progress update:', data);
-      
-      // Update progress state
-      setProgress({
-        stage: data.stage,
-        message: data.message,
-        progress: data.progress
-      });
 
-      // Calculate estimated time
-      if (data.progress > 5 && data.progress < 100) {
-        const elapsed = (Date.now() - startTime) / 1000;
-        const estimatedTotal = (elapsed / data.progress) * 100;
-        const remaining = Math.ceil(estimatedTotal - elapsed);
-        setEstimatedTime(remaining > 0 ? remaining : 1);
-      }
+const connectWebSocket = (billIdParam) => {
+  console.log('connectWebSocket called with billIdParam:', billIdParam); // DEBUG
+  
+  const ws = new WebSocket(`ws://localhost:8000/ws/progress/${billIdParam}`);
+  wsRef.current = ws;
 
-      // Redirect when processing is complete
-      if (data.stage === 'completed') {
-        setTimeout(() => {
-          ws.close();
-          navigate(`/result/${billIdParam}`);
-        }, 1500);
-      }
-
-      // Handle errors
-      if (data.stage === 'error') {
-        setError(data.message);
-        setLoading(false);
-        ws.close();
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setError('Connection error. Please try again.');
-      setLoading(false);
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket closed');
-    };
+  ws.onopen = () => {
+    console.log('WebSocket connected');
   };
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    console.log('Progress update:', data);
+    
+    // Update progress state
+    setProgress({
+      stage: data.stage,
+      message: data.message,
+      progress: data.progress
+    });
+
+    // Calculate estimated time
+    if (data.progress > 5 && data.progress < 100) {
+      const elapsed = (Date.now() - startTime) / 1000;
+      const estimatedTotal = (elapsed / data.progress) * 100;
+      const remaining = Math.ceil(estimatedTotal - elapsed);
+      setEstimatedTime(remaining > 0 ? remaining : 1);
+    }
+
+    // Redirect when processing is complete
+    if (data.stage === 'completed') {
+      console.log('COMPLETION DETECTED - billIdParam is:', billIdParam); // DEBUG
+      setTimeout(() => {
+        console.log('About to navigate to:', `/result/${billIdParam}`); // DEBUG
+        ws.close();
+        navigate(`/result/${billIdParam}`);
+      }, 1500);
+    }
+
+    // Handle errors
+    if (data.stage === 'error') {
+      setError(data.message);
+      setLoading(false);
+      ws.close();
+    }
+  };
+
+  ws.onerror = (error) => {
+    console.error('WebSocket error:', error);
+    setError('Connection error. Please try again.');
+    setLoading(false);
+  };
+
+  ws.onclose = () => {
+    console.log('WebSocket closed');
+  };
+};
 
   const handleRetry = () => {
     setError('');
@@ -138,6 +152,15 @@ function Upload() {
     setStartTime(null);
     // Form will still have the file and settings, just resubmit
   };
+  useEffect(() => {
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const email = hash.get("user_email");
+    const name = hash.get("user_name");
+    if (email) {
+      localStorage.setItem("user", name || email);
+    }
+  }, []);
+
 
   // Cleanup WebSocket on component unmount
   useEffect(() => {
@@ -151,19 +174,25 @@ function Upload() {
   return (
     <div className="page-container">
       <div className="container">
-        <h1>💰 PayUp</h1>
-        <p className="subtitle">Bill Splitting App</p>
+      <h1>💰 PayUp</h1>
+      <p className="subtitle">{user ? `Welcome, ${user}` : "Bill Splitting App"}</p>
         
-        {error && (
-          <div className="error-message">
-            {error}
-            {billId && (
-              <button onClick={handleRetry} className="retry-btn">
-                Try Again
-              </button>
-            )}
-          </div>
-        )}
+    {user && (
+      <button 
+        onClick={handleLogout} 
+        className="btn-secondary" 
+        style={{ 
+          position: "absolute", 
+          top: "20px", 
+          right: "20px",
+          padding: "8px 16px",
+          fontSize: "14px",
+          cursor: "pointer"
+        }}
+      >
+        Logout
+      </button>
+    )}
         
         <form onSubmit={handleSubmit}>
           <div className="form-group">

@@ -24,6 +24,10 @@ from celery import Celery
 from redis import Redis
 import asyncio
 
+from auth import router as auth_router
+
+
+
 # Load environment variables
 load_dotenv()
 
@@ -41,6 +45,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router)
 
 # Database session dependency
 async def get_db():
@@ -203,7 +209,7 @@ def process_bill_async(self, bill_id: str, temp_file_path: str, instruction: str
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
         
-        publish_progress('completed', '✅ Bill processed successfully!', 100)
+        publish_progress('completed', 'Bill processed successfully!', 100)
         
         return {
             "bill_id": bill_id,
@@ -212,17 +218,13 @@ def process_bill_async(self, bill_id: str, temp_file_path: str, instruction: str
         }
         
     except Exception as e:
-        publish_progress('error', f'❌ Error: {str(e)}', 0)
+        publish_progress('error', f'Error: {str(e)}', 0)
         
         # Clean up temp file on error
         if os.path.exists(temp_file_path):
             os.remove(temp_file_path)
         
         raise e
-
-
-
-
 
 # ============ MODIFIED: Process Bill Endpoint (Now Async) ============
 
@@ -241,7 +243,11 @@ async def process_bill(
         bill_id = str(uuid.uuid4())
         
         # Save uploaded file temporarily (will be processed by worker)
-        temp_file_path = f"/tmp/{bill_id}_{file.filename}"
+
+        tmp_dir = tempfile.gettempdir()
+
+        # Construct the full path in an OS-safe way
+        temp_file_path = os.path.join(tmp_dir, f"{bill_id}_{file.filename}")
         with open(temp_file_path, "wb") as f:
             f.write(await file.read())
         
@@ -260,7 +266,6 @@ async def process_bill(
             status_code=500,
             content={"error": str(e)}
         )
-
 
 # ============ NEW: WebSocket for Real-time Progress ============
 

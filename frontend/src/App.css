@@ -463,197 +463,26 @@ pre {
   }
 }
 
-
-
-/* Background update
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+.btn-download img {
+  vertical-align: middle;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: linear-gradient(135deg, #60a5fa 0%, #93c5fd 50%, #dbeafe 100%);
-  min-height: 100vh;
-  position: relative;
-  overflow: hidden;
+.link {
+  color: #007bff;
+  cursor: pointer;
+  font-weight: 500;
 }
 
-/* Top Center - Coin */
-/* body::before {
-  content: "💰";
-  position: fixed;
-  font-size: 180px;
-  opacity: 0.12;
-  z-index: 0;
-  pointer-events: none;
-  top: 10%;
-  left: 15%;
-  transform: rotate(-25deg);
-  animation: float 6s ease-in-out infinite;
-} */
-
-/* Middle Right - Credit Card */
-/* body::after {
-  content: "💳";
-  position: fixed;
-  font-size: 160px;
-  opacity: 0.12;
-  z-index: 0;
-  pointer-events: none;
-  top: 45%;
-  right: 8%;
-  transform: rotate(20deg);
-  animation: float 8s ease-in-out infinite 1s;
-} */
-
-/* Top Right - Dollar Bills */
-/* .page-container::before {
-  content: "💵";
-  position: fixed;
-  font-size: 140px;
-  opacity: 0.1;
-  z-index: 0;
-  pointer-events: none;
-  top: 18%;
-  right: 25%;
-  transform: rotate(15deg);
-  animation: float 7s ease-in-out infinite 2s;
-} */
-
-/* Middle Left - Receipt */
-/* .page-container::after {
-  content: "🧾";
-  position: fixed;
-  font-size: 150px;
-  opacity: 0.1;
-  z-index: 0;
-  pointer-events: none;
-  top: 55%;
-  left: 12%;
-  transform: rotate(-18deg);
-  animation: float 9s ease-in-out infinite 3s;
-} */
-
-/* Bottom Center - Money with Wings */
-/* .container::before {
-  content: "💸";
-  position: fixed;
-  font-size: 130px;
-  opacity: 0.11;
-  z-index: 0;
-  pointer-events: none;
-  bottom: 15%;
-  left: 35%;
-  transform: rotate(12deg);
-  animation: float 8s ease-in-out infinite 4s;
-} */
-
-/* Middle Center - Coin */
-/* .container::after {
-  content: "💰";
-  position: fixed;
-  font-size: 90px;
-  opacity: 0.09;
-  z-index: 0;
-  pointer-events: none;
-  top: 32%;
-  left: 60%;
-  transform: rotate(-30deg);
-  animation: float 10s ease-in-out infinite 2.5s;
-} */
-
-/* Bottom Right - Dollar */
-/* .result-container::before {
-  content: "💵";
-  position: fixed;
-  font-size: 145px;
-  opacity: 0.1;
-  z-index: 0;
-  pointer-events: none;
-  bottom: 25%;
-  right: 15%;
-  transform: rotate(-22deg);
-  animation: float 7.5s ease-in-out infinite 1.5s;
-} */
-
-/* Top Left - Receipt */
-/* .result-container::after {
-  content: "🧾";
-  position: fixed;
-  font-size: 500px;
-  opacity: 0.1;
-  z-index: 0;
-  pointer-events: none;
-  top: 25%;
-  left: 40%;
-  transform: rotate(28deg);
-  animation: float 9.5s ease-in-out infinite 3.5s;
-} */
-
-/* Floating Animation */
-/* @keyframes float {
-  0%, 100% { 
-    transform: translateY(0px) rotate(var(--rotate, 0deg)); 
-  }
-  50% { 
-    transform: translateY(-25px) rotate(calc(var(--rotate, 0deg) + 5deg)); 
-  }
+.link:hover {
+  text-decoration: underline;
 }
 
-.page-container {
-  position: relative;
-  z-index: 1;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
+.btn, .btn-download {
+  cursor: pointer;
 }
 
-.container {
-  position: relative;
-  z-index: 2;
-  background: white;
-  border-radius: 20px;
-  padding: 40px;
-  max-width: 500px;
-  width: 100%;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-  animation: fadeIn 0.5s ease-out;
+.btn-secondary:hover {
+  opacity: 0.8;
+  transform: scale(1.02);
+  transition: all 0.2s ease;
 }
-
-@keyframes fadeIn {
-  from { 
-    opacity: 0; 
-    transform: translateY(10px); 
-  }
-  to { 
-    opacity: 1; 
-    transform: translateY(0); 
-  }
-}
-
-.result-container {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 20px;
-  position: relative;
-  z-index: 2;
-}
-
-
-.page-container {
-  position: relative;
-  z-index: 1;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-} */ 
-
-
-
-

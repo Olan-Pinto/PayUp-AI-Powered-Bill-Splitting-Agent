@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 function Result() {
-  const { billId } = useParams();
+  const { bill_id } = useParams();
   const navigate = useNavigate();
   const [billData, setBillData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -13,7 +13,7 @@ function Result() {
   useEffect(() => {
     const fetchBillData = async () => {
       try {
-        const response = await axios.get(`http://localhost:8000/bill/${billId}`);
+        const response = await axios.get(`http://localhost:8000/bill/${bill_id}`);
         setBillData(response.data);
         setLoading(false);
       } catch (err) {
@@ -23,19 +23,19 @@ function Result() {
     };
 
     fetchBillData();
-  }, [billId]);
+  }, [bill_id]);
 
   const downloadBill = async () => {
     try {
       const response = await axios.get(
-        `http://localhost:8000/bill/${billId}/download`,
+        `http://localhost:8000/bill/${bill_id}/download`,
         { responseType: 'blob' }
       );
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `bill_${billId}.jpg`);
+      link.setAttribute('download', `bill_${bill_id}.jpg`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -71,14 +71,14 @@ function Result() {
     <div className="result-container">
       <div className="header">
         <h1>Bill Processed Successfully!</h1>
-        <div className="bill-id-badge">Bill ID: {billId}</div>
+        <div className="bill-id-badge">Bill ID: {bill_id}</div>
       </div>
 
       {/* Bill Image */}
       <div className="card">
         <h2>📷 Original Bill</h2>
         <img
-          src={`http://localhost:8000/bill/${billId}/view`}
+          src={`http://localhost:8000/bill/${bill_id}/view`}
           alt="Bill"
           style={{ maxWidth: '100%', borderRadius: '8px' }}
         />

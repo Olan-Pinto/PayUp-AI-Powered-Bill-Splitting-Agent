@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -94,10 +94,31 @@ function Upload() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("user");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      const accessToken = localStorage.getItem("access_token");
+      
+      // Call logout endpoint to invalidate Redis session
+      if (accessToken) {
+        await axios.post(
+          'http://localhost:8000/auth/logout',
+          {},
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`
+            }
+          }
+        );
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Continue with logout even if server call fails
+    } finally {
+      // Clear local storage
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("user");
+      navigate("/login");
+    }
   };
 
   const connectWebSocket = (billIdParam) => {
@@ -391,7 +412,7 @@ function Upload() {
         </div>
       </div>
 
-      {/* Processing Overlay */}
+      {/* Processing Overlay - Same as before */}
       {loading && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-lg shadow-2xl border-0">
@@ -412,7 +433,6 @@ function Upload() {
                 </div>
               ) : (
                 <div className="space-y-8">
-                  {/* Spinner */}
                   <div className="flex justify-center">
                     <div className="h-16 w-16 rounded-full border-4 border-gray-200 dark:border-gray-700 border-t-indigo-600 dark:border-t-indigo-400 animate-spin" />
                   </div>
@@ -422,7 +442,6 @@ function Upload() {
                       Processing Your Bill
                     </h2>
                     
-                    {/* Progress Bar */}
                     <div className="space-y-3">
                       <Progress value={progress.progress} className="h-3" />
                       <div className="flex justify-between items-center text-sm">
@@ -438,7 +457,6 @@ function Upload() {
                     </div>
                   </div>
                   
-                  {/* Processing Steps */}
                   <div className="space-y-3">
                     {[
                       { stage: 'uploading', icon: '📤', label: 'Uploading bill...', threshold: 30 },

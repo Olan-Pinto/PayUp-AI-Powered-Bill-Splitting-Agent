@@ -26,7 +26,10 @@ ALGORITHM = "HS256"
 
 # Initialize clients
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-redis_client = Redis(host="localhost", port=6379, decode_responses=True)
+# redis_client = Redis(host="localhost", port=6379, decode_responses=True) #removed this line for docker compatibility
+
+redis_client = Redis(host="redis", port=6379, decode_responses=True)
+
 
 # Session settings
 SESSION_EXPIRY = 60 * 60 * 24 * 7  # 7 days in seconds

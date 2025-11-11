@@ -1,10 +1,13 @@
+import os
 from celery import Celery
 
 celery_app = Celery(
     'payup_workers',
-    broker='amqp://guest:guest@localhost:5672//',
-    backend='redis://localhost:6379/0'
+    broker=os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672//'),
+    backend=os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')
 )
+
+
 
 celery_app.conf.update(
     task_serializer='json',

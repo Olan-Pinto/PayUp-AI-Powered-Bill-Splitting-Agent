@@ -63,10 +63,17 @@ system = BillSplitSystem(
 # ============ NEW: Celery + Redis Configuration ============
 
 # Celery app for async task queue
+# celery_app = Celery(
+#     'bill_processor',
+#     broker='amqp://guest:guest@localhost:5672//',
+#     backend='redis://localhost:6379/0'
+# )
+
+
 celery_app = Celery(
     'bill_processor',
-    broker='amqp://guest:guest@localhost:5672//',
-    backend='redis://localhost:6379/0'
+    broker=os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672//'),
+    backend=os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/0')
 )
 
 celery_app.conf.update(
@@ -80,7 +87,10 @@ celery_app.conf.update(
 )
 
 # Redis client for progress tracking
-redis_client = Redis(host='localhost', port=6379, decode_responses=True)
+# redis_client = Redis(host='localhost', port=6379, decode_responses=True) #changed to below for docker compatibility
+
+redis_client = Redis(host="redis", port=6379, decode_responses=True)
+
 
 
 # ============ NEW: Celery Background Task ============
@@ -242,12 +252,12 @@ async def process_bill(
         # Generate unique ID
         bill_id = str(uuid.uuid4())
         
+        # Use environment variable with fallback
+        uploads_dir = os.getenv("UPLOADS_DIR", "/tmp/uploads")
+        os.makedirs(uploads_dir, exist_ok=True)
+        
         # Save uploaded file temporarily (will be processed by worker)
-
-        tmp_dir = tempfile.gettempdir()
-
-        # Construct the full path in an OS-safe way
-        temp_file_path = os.path.join(tmp_dir, f"{bill_id}_{file.filename}")
+        temp_file_path = os.path.join(uploads_dir, f"{bill_id}_{file.filename}")
         with open(temp_file_path, "wb") as f:
             f.write(await file.read())
         

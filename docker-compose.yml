@@ -1,24 +1,55 @@
-version: '3.8'
+version: "3.8"
 
 services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
   rabbitmq:
     image: rabbitmq:3-management
     ports:
-      - "5672:5672"      # AMQP port
-      - "15672:15672"    # Management UI
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+      - "5672:5672"
+      - "15672:15672"
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
+  celery_worker:
+    build: .
+    command: celery -A main.celery_app worker --loglevel=info --pool=solo
+    depends_on:
+      - rabbitmq
+      - redis
+    environment:
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - UPLOADS_DIR=/tmp/uploads  # Add this
     volumes:
-      - redis_data:/data
+      - shared-uploads:/tmp/uploads
+
+  api:
+    build: .
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - rabbitmq
+    environment:
+      - UPLOADS_DIR=/tmp/uploads  # Add this
+    volumes:
+      - shared-uploads:/tmp/uploads
+
+  frontend:
+    build:
+      context: ./frontend
+    command: npm run dev -- --host 0.0.0.0
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    working_dir: /app
+    depends_on:
+      - api
 
 volumes:
-  rabbitmq_data:
-  redis_data:
+  shared-uploads:

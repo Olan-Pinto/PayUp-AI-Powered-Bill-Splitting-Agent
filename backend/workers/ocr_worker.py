@@ -6,7 +6,8 @@ class ProgressTask(Task):
     def update_progress(self, bill_id, stage, message, progress):
         # Publish progress to Redis for WebSocket
         from redis import Redis
-        redis_client = Redis(host='localhost', port=6379, decode_responses=True)
+        # redis_client = Redis(host='localhost', port=6379, decode_responses=True) #changed to below for docker compatibility
+        redis_client = Redis(host="redis", port=6379, decode_responses=True)
         redis_client.publish(
             f'bill_progress:{bill_id}',
             f'{{"stage": "{stage}", "message": "{message}", "progress": {progress}}}'

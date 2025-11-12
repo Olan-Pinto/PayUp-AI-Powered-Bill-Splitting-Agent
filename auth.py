@@ -146,10 +146,7 @@ def login_with_google():
 @router.get("/google/callback")
 async def google_callback(request: Request):
     """Handle Google OAuth callback and redirect to frontend."""
-    frontend_url = os.getenv(
-        "FRONTEND_URL",
-        "http://localhost:5173"  # fallback for local dev
-    )
+    frontend_url = 'https://payup-frontend-332078128555.us-central1.run.app'
     return RedirectResponse(f"{frontend_url}/auth/callback")
 
 

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from '../config';
 
 function AuthCallback() {
   const navigate = useNavigate();
@@ -11,7 +12,7 @@ function AuthCallback() {
 
     if (accessToken) {
       localStorage.setItem("access_token", accessToken);
-      fetch("http://localhost:8000/auth/verify", {
+      fetch(`${API_URL}/auth/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ access_token: accessToken }),

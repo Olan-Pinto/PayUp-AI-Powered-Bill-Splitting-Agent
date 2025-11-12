@@ -40,7 +40,9 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "https://payup-frontend-332078128555.us-central1.run.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

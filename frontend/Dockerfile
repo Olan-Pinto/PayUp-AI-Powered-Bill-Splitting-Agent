@@ -10,6 +10,8 @@ RUN npm install --legacy-peer-deps
 
 # Copy all project files
 COPY . .
+COPY src/lib/ ./src/lib/
+
 
 # Build optimized static site
 RUN npm run build

@@ -39,9 +39,10 @@ class Config:
         # Google Cloud Storage settings
         self.gcs_credentials_path = gcs_credentials_path
         self.gcs_bucket_name = gcs_bucket_name
-        self.gcs_enabled = gcs_credentials_path is not None and gcs_bucket_name is not None
-        
-        if self.gcs_enabled:
+# NEW:
+        self.gcs_enabled = gcs_bucket_name is not None
+
+        if self.gcs_enabled and gcs_credentials_path is not None:
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = self.gcs_credentials_path
         
     def configure_genai(self):

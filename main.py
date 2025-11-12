@@ -56,7 +56,7 @@ async def get_db():
 # Existing system
 system = BillSplitSystem(
     api_key=os.getenv("GEMINI_API_KEY"),
-    gcs_credentials_path='gcloud-key/bill_upload_bucket_key.json',
+    gcs_credentials_path=None,
     gcs_bucket_name='uploaded_bills'
 )
 

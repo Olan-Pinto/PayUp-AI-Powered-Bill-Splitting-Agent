@@ -126,7 +126,10 @@ def process_bill_async(self, bill_id: str, gcs_path: str, instruction: str):
         blob = bucket.blob(blob_name)
         
         # Download to local temp file
-        temp_file_path = f"/tmp/{bill_id}_temp.jpg"
+        # temp_file_path = f"/tmp/{bill_id}_temp.jpg"
+        import tempfile
+        temp_dir = tempfile.gettempdir()  # Works on both Windows and Linux
+        temp_file_path = os.path.join(temp_dir, f"{bill_id}_temp.jpg")
         blob.download_to_filename(temp_file_path)
         
         publish_progress('uploading', 'Download complete! Starting OCR...', 20)
@@ -190,7 +193,7 @@ def process_bill_async(self, bill_id: str, gcs_path: str, instruction: str):
             SET file_name = EXCLUDED.file_name,
                 bill_json = EXCLUDED.bill_json
             """,
-            (bill_id, bill_data.gcs_uri, Json(bill_json))
+            (bill_id, gcs_path, Json(bill_json))  # ✅ Use the gcs_path parameter
         )
         
         conn.commit()

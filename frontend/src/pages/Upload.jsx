@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Upload as UploadIcon, Search, LogOut, DollarSign, CheckCircle2, AlertCircle } from "lucide-react";
+import { API_URL, WS_URL } from '../config';
 
 function Upload() {
   const navigate = useNavigate();
@@ -77,7 +78,7 @@ function Upload() {
     formData.append('instruction', getInstruction());
 
     try {
-      const response = await axios.post('http://localhost:8000/process-bill', formData, {
+      const response = await axios.post(`${API_URL}/process-bill`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -101,7 +102,7 @@ function Upload() {
       // Call logout endpoint to invalidate Redis session
       if (accessToken) {
         await axios.post(
-          'http://localhost:8000/auth/logout',
+          `${API_URL}/auth/logout`,
           {},
           {
             headers: {
@@ -122,7 +123,7 @@ function Upload() {
   };
 
   const connectWebSocket = (billIdParam) => {
-    const ws = new WebSocket(`ws://localhost:8000/ws/progress/${billIdParam}`);
+    const ws = new WebSocket(`${WS_URL}/ws/progress/${billIdParam}`);
     wsRef.current = ws;
 
     ws.onopen = () => {

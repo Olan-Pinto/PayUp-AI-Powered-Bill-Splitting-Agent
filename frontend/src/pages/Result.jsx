@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { API_URL } from '../config';
+
 import { 
   DollarSign, 
   Download, 
@@ -32,7 +34,7 @@ function Result() {
   useEffect(() => {
     const fetchBillData = async () => {
       try {
-        const response = await axios.get(`http://localhost:8000/bill/${bill_id}`);
+        const response = await axios.get(`${API_URL}/bill/${bill_id}`);
         setBillData(response.data);
         setLoading(false);
       } catch (err) {
@@ -47,7 +49,7 @@ function Result() {
   const downloadBill = async () => {
     try {
       const response = await axios.get(
-        `http://localhost:8000/bill/${bill_id}/download`,
+        `${API_URL}/bill/${bill_id}/download`,
         { responseType: 'blob' }
       );
 
@@ -246,7 +248,7 @@ function Result() {
             <CardContent className="p-6">
               <div className="relative group">
                 <img
-                  src={`http://localhost:8000/bill/${bill_id}/view`}
+                  src={`${API_URL}/bill/${bill_id}/view`}
                   alt="Bill"
                   className="w-full rounded-xl shadow-lg transition-transform duration-200 group-hover:scale-[1.02]"
                 />

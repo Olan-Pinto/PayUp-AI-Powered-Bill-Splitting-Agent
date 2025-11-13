@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Search, Download, Eye, Home, DollarSign, AlertCircle, ArrowLeft } from "lucide-react";
+import { API_URL } from '../config';
 
 function Lookup() {
   const navigate = useNavigate();
@@ -32,7 +33,7 @@ function Lookup() {
     setIsDownloading(true);
     try {
       const response = await axios.get(
-        `http://localhost:8000/bill/${billId.trim()}/download`,
+        `${API_URL}/bill/${billId.trim()}/download`,
         { responseType: 'blob' }
       );
 

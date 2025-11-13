@@ -1,13 +1,15 @@
 from celery import Task
 from workers.celery_app import celery_app
 import time
-
+import os
 class ProgressTask(Task):
     def update_progress(self, bill_id, stage, message, progress):
         # Publish progress to Redis for WebSocket
         from redis import Redis
         # redis_client = Redis(host='localhost', port=6379, decode_responses=True) #changed to below for docker compatibility
-        redis_client = Redis(host="redis", port=6379, decode_responses=True)
+        # redis_client = Redis(host="redis", port=6379, decode_responses=True) #changed for deployment
+        REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/0')
+        redis_client = Redis.from_url(REDIS_URL, decode_responses=True)
         redis_client.publish(
             f'bill_progress:{bill_id}',
             f'{{"stage": "{stage}", "message": "{message}", "progress": {progress}}}'

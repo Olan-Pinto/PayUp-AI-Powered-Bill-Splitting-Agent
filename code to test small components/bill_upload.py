@@ -1,7 +1,7 @@
 from google.cloud import storage
 import os
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/Users/shivanimadan/Desktop/Masters/Sem3/DCSC/Project/PayUp-AI-Powered-Bill-Splitting-Agent/gcloud-key/bill_upload_bucket_key.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "gcloud-key/bill_upload_bucket_key.json"
 
 def upload_to_gcs(bucket_name, source_file_path, destination_blob_name):
     """Uploads a file to the Google Cloud Storage bucket."""
@@ -14,4 +14,4 @@ def upload_to_gcs(bucket_name, source_file_path, destination_blob_name):
     print(f"File {source_file_path} uploaded to gs://{bucket_name}/{destination_blob_name}")
 
 # Example usage
-upload_to_gcs("uploaded_bills", "../test_img.jpg", "bills/test_img.jpg")
+upload_to_gcs("uploaded_bills", "./test_img.jpg", "bills/test_img.jpg")

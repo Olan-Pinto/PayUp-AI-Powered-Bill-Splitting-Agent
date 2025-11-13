@@ -31,7 +31,7 @@ class Config:
     def __init__(self, api_key: str, gcs_credentials_path: Optional[str] = None,
                  gcs_bucket_name: Optional[str] = None):
         self.api_key = api_key
-        self.vision_model = 'gemini-2.0-flash-exp'
+        self.vision_model = 'gemini-2.0-flash'
         self.agent_model = 'gemini-2.0-flash'
         self.temperature = 0
         self.max_agent_iterations = 15
@@ -39,10 +39,9 @@ class Config:
         # Google Cloud Storage settings
         self.gcs_credentials_path = gcs_credentials_path
         self.gcs_bucket_name = gcs_bucket_name
-# NEW:
-        self.gcs_enabled = gcs_bucket_name is not None
-
-        if self.gcs_enabled and gcs_credentials_path is not None:
+        self.gcs_enabled = gcs_credentials_path is not None and gcs_bucket_name is not None
+        
+        if self.gcs_enabled:
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = self.gcs_credentials_path
         
     def configure_genai(self):

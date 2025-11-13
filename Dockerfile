@@ -1,10 +1,17 @@
+# Base image
 FROM python:3.11-slim
 
+# Set working directory
 WORKDIR /app
-COPY requirements.txt .
+
+# Copy files
+COPY . /app
+
+# Install dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Expose FastAPI port
+EXPOSE 8000
 
-# Cloud Run sets $PORT. Use it, default 8080 if missing.
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+# Default command
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

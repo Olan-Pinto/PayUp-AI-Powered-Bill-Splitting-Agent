@@ -1,33 +1,16 @@
-# ---- Build Stage ----
-FROM node:20-bullseye AS build
+FROM node:20-bullseye
+
 WORKDIR /app
 
-# Copy dependency manifests
 COPY package*.json ./
 
-# Install deps (no dev server)
-RUN npm install --legacy-peer-deps
+# Clean install with explicit native binary
+RUN rm -rf node_modules package-lock.json
+RUN npm install --include=dev --legacy-peer-deps
+RUN npm install @rollup/rollup-linux-x64-gnu --save-optional --no-save
 
-# Copy all project files
 COPY . .
-COPY src/lib/ ./src/lib/
 
+EXPOSE 5173
 
-# Build optimized static site
-RUN npm run build
-
-# ---- Serve Stage ----
-FROM node:20-bullseye
-WORKDIR /app
-
-# Install lightweight static file server
-RUN npm install -g serve
-
-# Copy build output from previous stage
-COPY --from=build /app/dist ./dist
-
-# Expose Cloud Run port
-EXPOSE 8080
-
-# Serve on the expected Cloud Run port
-CMD ["serve", "-s", "dist", "-l", "8080","--single"]
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

@@ -3,14 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Sparkles, DollarSign, Users, Zap } from "lucide-react";
-import { API_URL } from '../config';
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleGoogleLogin = () => {
     setIsLoading(true);
-    window.location.href = `${API_URL}/auth/google`;
+    window.location.href = "http://localhost:8000/auth/google";
   };
 
   return (

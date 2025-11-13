@@ -12,7 +12,7 @@ from langchain import hub
 class Config:
     def __init__(self, api_key: str):
         self.api_key = api_key
-        self.vision_model = 'gemini-2.0-flash-exp'
+        self.vision_model = 'gemini-2.0-flash'
         self.agent_model = 'gemini-2.0-flash'
         self.temperature = 0
         self.max_agent_iterations = 15

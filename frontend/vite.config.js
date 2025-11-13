@@ -1,22 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import path from 'path'
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': '/src',
     },
   },
-  server: {
-    host: '0.0.0.0',
-    port: 5173,
-    allowedHosts: [
-      'localhost',
-      '.run.app',  // Allow all Cloud Run domains
-      'payup-frontend-332078128555.us-central1.run.app'  // Your specific domain
-    ]
-  }
 })

@@ -19,8 +19,6 @@ import {
   ChevronUp,
   Eye
 } from "lucide-react";
-import { API_URL } from '../config';
-
 
 function Result() {
   const { bill_id } = useParams();
@@ -34,7 +32,7 @@ function Result() {
   useEffect(() => {
     const fetchBillData = async () => {
       try {
-        const response = await axios.get(`${API_URL}/bill/${bill_id}`);
+        const response = await axios.get(`http://localhost:8000/bill/${bill_id}`);
         setBillData(response.data);
         setLoading(false);
       } catch (err) {
@@ -49,7 +47,7 @@ function Result() {
   const downloadBill = async () => {
     try {
       const response = await axios.get(
-        `${API_URL}/bill/${bill_id}/download`,
+        `http://localhost:8000/bill/${bill_id}/download`,
         { responseType: 'blob' }
       );
 
@@ -248,7 +246,7 @@ function Result() {
             <CardContent className="p-6">
               <div className="relative group">
                 <img
-                  src={`${API_URL}/bill/${bill_id}/view`}
+                  src={`http://localhost:8000/bill/${bill_id}/view`}
                   alt="Bill"
                   className="w-full rounded-xl shadow-lg transition-transform duration-200 group-hover:scale-[1.02]"
                 />

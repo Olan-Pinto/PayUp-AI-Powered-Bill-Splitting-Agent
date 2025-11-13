@@ -35,6 +35,9 @@ services:
       - rabbitmq
     environment:
       - UPLOADS_DIR=/tmp/uploads  # Add this
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5672//
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - UPLOADS_DIR=/tmp/uploads
     volumes:
       - shared-uploads:/tmp/uploads
 

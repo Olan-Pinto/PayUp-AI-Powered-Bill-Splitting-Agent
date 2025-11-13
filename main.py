@@ -40,9 +40,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://payup-frontend-332078128555.us-central1.run.app"],
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -58,7 +56,7 @@ async def get_db():
 # Existing system
 system = BillSplitSystem(
     api_key=os.getenv("GEMINI_API_KEY"),
-    gcs_credentials_path=None,
+    gcs_credentials_path='gcloud-key/bill_upload_bucket_key.json',
     gcs_bucket_name='uploaded_bills'
 )
 
@@ -251,20 +249,27 @@ async def process_bill(
     Returns immediately with bill_id. Client can track progress via WebSocket.
     """
     try:
+        print(f"🔵 Received file: {file.filename}")
+        
         # Generate unique ID
         bill_id = str(uuid.uuid4())
+        print(f"🔵 Generated bill_id: {bill_id}")
         
         # Use environment variable with fallback
         uploads_dir = os.getenv("UPLOADS_DIR", "/tmp/uploads")
         os.makedirs(uploads_dir, exist_ok=True)
+        print(f"🔵 Uploads directory: {uploads_dir}")
         
         # Save uploaded file temporarily (will be processed by worker)
         temp_file_path = os.path.join(uploads_dir, f"{bill_id}_{file.filename}")
         with open(temp_file_path, "wb") as f:
             f.write(await file.read())
+        print(f"🔵 File saved to: {temp_file_path}")
         
         # Queue the processing job (non-blocking)
-        process_bill_async.delay(bill_id, temp_file_path, instruction)
+        print(f"🔵 Queueing task...")
+        task = process_bill_async.delay(bill_id, temp_file_path, instruction)
+        print(f"🔵 Task queued with ID: {task.id}")
         
         # Return immediately
         return JSONResponse(content={
@@ -274,6 +279,9 @@ async def process_bill(
         })
         
     except Exception as e:
+        print(f"❌ Error in process_bill: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return JSONResponse(
             status_code=500,
             content={"error": str(e)}

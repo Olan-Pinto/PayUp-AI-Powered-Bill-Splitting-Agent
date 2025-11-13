@@ -40,7 +40,10 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",  # Local development
+        "https://payup-frontend-*.run.app",  # Cloud Run frontend (wildcard)
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -56,8 +59,8 @@ async def get_db():
 # Existing system
 system = BillSplitSystem(
     api_key=os.getenv("GEMINI_API_KEY"),
-    gcs_credentials_path='gcloud-key/bill_upload_bucket_key.json',
-    gcs_bucket_name='uploaded_bills'
+    gcs_credentials_path=None,
+    gcs_bucket_name=os.getenv("GCS_BUCKET_NAME", "uploaded_bills")
 )
 
 # ============ NEW: Celery + Redis Configuration ============

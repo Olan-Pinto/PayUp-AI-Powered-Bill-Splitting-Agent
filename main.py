@@ -42,7 +42,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",  # Local development
-        "https://payup-frontend-*.run.app",  # Cloud Run frontend (wildcard)
+        "https://payup-frontend-332078128555.us-central1.run.app",  # Cloud Run frontend (wildcard)
     ],
     allow_credentials=True,
     allow_methods=["*"],

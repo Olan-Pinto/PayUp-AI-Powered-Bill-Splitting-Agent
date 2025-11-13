@@ -11,6 +11,10 @@ RUN npm install --legacy-peer-deps
 # Copy ALL project files
 COPY . .
 
+# Accept build argument and set as environment variable for Vite
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
 # Build optimized static site
 RUN npm run build
 

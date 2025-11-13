@@ -42,7 +42,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",  # Local development
-        "https://payup-frontend-332078128555.us-central1.run.app",  # Cloud Run frontend (wildcard)
+        "https://payup-frontend-332078128555.us-central1.run.app",  # Production frontend
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -65,14 +65,6 @@ system = BillSplitSystem(
 
 # ============ NEW: Celery + Redis Configuration ============
 
-# Celery app for async task queue
-# celery_app = Celery(
-#     'bill_processor',
-#     broker='amqp://guest:guest@localhost:5672//',
-#     backend='redis://localhost:6379/0'
-# )
-
-
 celery_app = Celery(
     'bill_processor',
     broker=os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672//'),
@@ -90,26 +82,22 @@ celery_app.conf.update(
 )
 
 # Redis client for progress tracking
-# redis_client = Redis(host='localhost', port=6379, decode_responses=True) #changed to below for docker compatibility
-
-# redis_client = Redis(host="redis", port=6379, decode_responses=True) #removed this line for deployment
-
 REDIS_URL = os.getenv('REDIS_URL', 'redis://redis:6379/0')
 redis_client = Redis.from_url(REDIS_URL, decode_responses=True)
+
 
 # ============ NEW: Celery Background Task ============
 
 @celery_app.task(bind=True)
-
-
-def process_bill_async(self, bill_id: str, temp_file_path: str, instruction: str):
+def process_bill_async(self, bill_id: str, gcs_path: str, instruction: str):
     """
-    Celery task to process bill in the background with detailed progress updates.
+    Celery task to process bill from GCS with detailed progress updates.
     """
     import time
     import psycopg2
     from psycopg2.extras import Json
     import os
+    from google.cloud import storage
     
     def publish_progress(stage, message, progress):
         """Publish progress to Redis for WebSocket"""
@@ -122,29 +110,33 @@ def process_bill_async(self, bill_id: str, temp_file_path: str, instruction: str
             })
         )
     
+    temp_file_path = None
+    
     try:
-        # Step 1: Upload preparation
-        publish_progress('uploading', 'Preparing file for upload...', 5)
-        # time.sleep(1)
+        # Step 1: Download from GCS
+        publish_progress('uploading', 'Downloading bill from storage...', 10)
         
-        publish_progress('uploading', 'Connecting to Google Cloud Storage...', 10)
-        # time.sleep(1)
+        # Parse GCS path: gs://bucket/path
+        gcs_path_parts = gcs_path.replace("gs://", "").split("/", 1)
+        bucket_name = gcs_path_parts[0]
+        blob_name = gcs_path_parts[1]
         
-        publish_progress('uploading', 'Uploading bill image...', 15)
-        # time.sleep(1.5)
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        blob = bucket.blob(blob_name)
         
-        publish_progress('uploading', 'Upload complete! Starting OCR...', 20)
-        # time.sleep(0.5)
+        # Download to local temp file
+        temp_file_path = f"/tmp/{bill_id}_temp.jpg"
+        blob.download_to_filename(temp_file_path)
+        
+        publish_progress('uploading', 'Download complete! Starting OCR...', 20)
         
         # Step 2: OCR Processing
         publish_progress('ocr', 'Initializing OCR engine...', 25)
-        # time.sleep(1)
         
         publish_progress('ocr', 'Scanning bill image...', 30)
-        # time.sleep(1)
         
         publish_progress('ocr', 'Extracting text from bill...', 40)
-        # time.sleep(1)
         
         # Process bill (actual AI work happens here)
         bill_data, split_result = system.process_and_split(temp_file_path, instruction)
@@ -152,18 +144,14 @@ def process_bill_async(self, bill_id: str, temp_file_path: str, instruction: str
         # Get item count
         item_count = len(bill_data.raw_data.get('items', []))
         publish_progress('ocr', f'Found {item_count} line items on bill', 50)
-        # time.sleep(1)
         
         publish_progress('ocr', 'Parsing prices and totals...', 55)
-        # time.sleep(1)
         
         # Step 3: Bill Splitting
         publish_progress('splitting', 'Analyzing bill structure...', 60)
-        # time.sleep(1)
         
         person_count = len(split_result.raw_data.get('breakdown', []))
         publish_progress('splitting', f'Calculating split for {person_count} people...', 65)
-        # time.sleep(1)
         
         # Get per-person amount
         if person_count > 0:
@@ -171,20 +159,15 @@ def process_bill_async(self, bill_id: str, temp_file_path: str, instruction: str
             publish_progress('splitting', f'Each person owes ${per_person:.2f}', 70)
         else:
             publish_progress('splitting', 'Calculating amounts...', 70)
-        # time.sleep(1)
         
         publish_progress('splitting', 'Applying tax and tip distribution...', 75)
-        # time.sleep(1)
         
         publish_progress('splitting', 'Verifying calculations...', 80)
-        # time.sleep(1)
         
-        # Step 4: Saving to Database Only
+        # Step 4: Saving to Database
         publish_progress('saving', 'Preparing data for storage...', 85)
-        # time.sleep(0.5)
         
         publish_progress('saving', 'Connecting to database...', 88)
-        # time.sleep(0.5)
         
         publish_progress('saving', 'Writing to database...', 92)
         
@@ -214,13 +197,10 @@ def process_bill_async(self, bill_id: str, temp_file_path: str, instruction: str
         cur.close()
         conn.close()
         
-        # time.sleep(1)
-        
         publish_progress('saving', 'Finalizing...', 96)
-        # time.sleep(0.5)
         
         # Clean up temp file
-        if os.path.exists(temp_file_path):
+        if temp_file_path and os.path.exists(temp_file_path):
             os.remove(temp_file_path)
         
         publish_progress('completed', 'Bill processed successfully!', 100)
@@ -235,7 +215,7 @@ def process_bill_async(self, bill_id: str, temp_file_path: str, instruction: str
         publish_progress('error', f'Error: {str(e)}', 0)
         
         # Clean up temp file on error
-        if os.path.exists(temp_file_path):
+        if temp_file_path and os.path.exists(temp_file_path):
             os.remove(temp_file_path)
         
         raise e
@@ -250,32 +230,40 @@ async def process_bill(
 ):
     """
     Upload a bill image and queue it for async processing.
-    Returns immediately with bill_id. Client can track progress via WebSocket.
     """
     try:
-        print(f"🔵 Received file: {file.filename}")
-        
         # Generate unique ID
         bill_id = str(uuid.uuid4())
         print(f"🔵 Generated bill_id: {bill_id}")
         
-        # Use environment variable with fallback
+        # Save to temporary file first
         uploads_dir = os.getenv("UPLOADS_DIR", "/tmp/uploads")
         os.makedirs(uploads_dir, exist_ok=True)
-        print(f"🔵 Uploads directory: {uploads_dir}")
         
-        # Save uploaded file temporarily (will be processed by worker)
         temp_file_path = os.path.join(uploads_dir, f"{bill_id}_{file.filename}")
         with open(temp_file_path, "wb") as f:
             f.write(await file.read())
-        print(f"🔵 File saved to: {temp_file_path}")
+        print(f"🔵 File saved temporarily to: {temp_file_path}")
         
-        # Queue the processing job (non-blocking)
-        print(f"🔵 Queueing task...")
-        task = process_bill_async.delay(bill_id, temp_file_path, instruction)
-        print(f"🔵 Task queued with ID: {task.id}")
+        # Upload to Google Cloud Storage
+        bucket_name = os.getenv("GCS_BUCKET_NAME", "uploaded_bills")
         
-        # Return immediately
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(bucket_name)
+        blob_name = f"pending/{bill_id}_{file.filename}"
+        blob = bucket.blob(blob_name)
+        blob.upload_from_filename(temp_file_path)
+        
+        gcs_path = f"gs://{bucket_name}/{blob_name}"
+        print(f"🔵 File uploaded to GCS: {gcs_path}")
+        
+        # Clean up local temp file
+        os.remove(temp_file_path)
+        
+        # Queue the processing job with GCS path
+        process_bill_async.delay(bill_id, gcs_path, instruction)
+        print(f"🔵 Task queued")
+        
         return JSONResponse(content={
             "message": "Bill queued for processing",
             "bill_id": bill_id,

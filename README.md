@@ -506,30 +506,7 @@ Contributions are welcome! To contribute:
 
 ---
 
-## 📄 License
 
-This project is licensed under the MIT License.
-
----
-
-## 👨‍💻 Author
-
-**Olan Pinto**
-- GitHub: [@Olan-Pinto](https://github.com/Olan-Pinto)
-- Project: [PayUp-AI-Powered-Bill-Splitting-Agent](https://github.com/Olan-Pinto/PayUp-AI-Powered-Bill-Splitting-Agent)
-
----
-
-## 🙏 Acknowledgments
-
-- **Google Gemini** for powerful AI capabilities
-- **FastAPI** for the excellent web framework
-- **React** and **shadcn/ui** for beautiful UI components
-- **Celery** for robust task processing
-- **Supabase** for seamless authentication
-- **Docker** for containerization
-
----
 
 ## 📚 Additional Resources
 
@@ -544,8 +521,5 @@ This project is licensed under the MIT License.
 
 <div align="center">
 
-**Built with ❤️ for CSCI 5253 - Data Center Scale Computing**
-
-**University of Colorado Boulder**
 
 </div>

@@ -573,7 +573,7 @@ if __name__ == "__main__":
     # Example 1: Basic usage with GCS upload
     system = BillSplitSystem(
         api_key=gemini_api_key,
-        gcs_credentials_path='gcloud-key/bill_upload_bucket_key.json',
+        gcs_credentials_path=None,
         gcs_bucket_name='uploaded_bills'
     )
     

@@ -115,7 +115,7 @@ def process_bill_async(self, bill_id: str, gcs_path: str, instruction: str):
     try:
         # Step 1: Download from GCS
         publish_progress('uploading', 'Downloading bill from storage...', 10)
-        
+        time.sleep(1)
         # Parse GCS path: gs://bucket/path
         gcs_path_parts = gcs_path.replace("gs://", "").split("/", 1)
         bucket_name = gcs_path_parts[0]
@@ -133,46 +133,53 @@ def process_bill_async(self, bill_id: str, gcs_path: str, instruction: str):
         blob.download_to_filename(temp_file_path)
         
         publish_progress('uploading', 'Download complete! Starting OCR...', 20)
-        
+        time.sleep(1)
         # Step 2: OCR Processing
         publish_progress('ocr', 'Initializing OCR engine...', 25)
-        
+        time.sleep(1)
         publish_progress('ocr', 'Scanning bill image...', 30)
-        
+        time.sleep(1)
         publish_progress('ocr', 'Extracting text from bill...', 40)
-        
+        time.sleep(1)
         # Process bill (actual AI work happens here)
         bill_data, split_result = system.process_and_split(temp_file_path, instruction)
         
         # Get item count
         item_count = len(bill_data.raw_data.get('items', []))
         publish_progress('ocr', f'Found {item_count} line items on bill', 50)
-        
+        time.sleep(1)
         publish_progress('ocr', 'Parsing prices and totals...', 55)
-        
+        time.sleep(1)
         # Step 3: Bill Splitting
         publish_progress('splitting', 'Analyzing bill structure...', 60)
-        
+        time.sleep(1)
         person_count = len(split_result.raw_data.get('breakdown', []))
         publish_progress('splitting', f'Calculating split for {person_count} people...', 65)
-        
+        time.sleep(1)
         # Get per-person amount
         if person_count > 0:
             per_person = split_result.raw_data['breakdown'][0].get('total', 0)
             publish_progress('splitting', f'Each person owes ${per_person:.2f}', 70)
+            time.sleep(1)
         else:
             publish_progress('splitting', 'Calculating amounts...', 70)
+            time.sleep(1)
         
         publish_progress('splitting', 'Applying tax and tip distribution...', 75)
+        time.sleep(1)
         
         publish_progress('splitting', 'Verifying calculations...', 80)
+        time.sleep(1)
         
         # Step 4: Saving to Database
         publish_progress('saving', 'Preparing data for storage...', 85)
+        time.sleep(1)
         
         publish_progress('saving', 'Connecting to database...', 88)
+        time.sleep(1)
         
         publish_progress('saving', 'Writing to database...', 92)
+        time.sleep(1)
         
         # Save to PostgreSQL using psycopg2 (sync)
         database_url = os.getenv("DATABASE_URL")
@@ -201,12 +208,14 @@ def process_bill_async(self, bill_id: str, gcs_path: str, instruction: str):
         conn.close()
         
         publish_progress('saving', 'Finalizing...', 96)
+        time.sleep(1)
         
         # Clean up temp file
         if temp_file_path and os.path.exists(temp_file_path):
             os.remove(temp_file_path)
         
         publish_progress('completed', 'Bill processed successfully!', 100)
+        time.sleep(1)
         
         return {
             "bill_id": bill_id,
@@ -216,6 +225,7 @@ def process_bill_async(self, bill_id: str, gcs_path: str, instruction: str):
         
     except Exception as e:
         publish_progress('error', f'Error: {str(e)}', 0)
+        time.sleep(1)
         
         # Clean up temp file on error
         if temp_file_path and os.path.exists(temp_file_path):
